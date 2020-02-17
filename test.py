@@ -1,3 +1,18 @@
+class Line():
+    def __init__(self, fit):
+        self.curvature = 0
+        self.fit = fit
+        self.fitx = []
+    def check(self,curv):
+        if(np.abs(curv-self.curvature) >= 5000):
+            return False
+        return True
+    def update(self, curv, fit):
+        self.curvature = curv
+        self.fit = fit
+left = Line([ 1.22120921e-04, -1.49160585e-01,  3.29075123e+02])
+right = Line([2.90910728e-04, -2.05179515e-01,  1.08280543e+03])
+
 import numpy as np
 import matplotlib.image as mpimg
 import matplotlib.pyplot as plt
@@ -45,7 +60,7 @@ def hls_select(img, threshold=(170, 255)):
     binary_output[(s_image > threshold[0]) & (s_image <= threshold[1])] = 1
     return binary_output
 
-def find_lane_pixels(binary_warped):
+def find_lane_pixels_full(binary_warped):
     # Take a histogram of the bottom half of the image
     histogram = np.sum(binary_warped[binary_warped.shape[0]//2:,:], axis=0)
     # Create an output image to draw on and visualize the result
@@ -60,7 +75,7 @@ def find_lane_pixels(binary_warped):
     # Choose the number of sliding windows
     nwindows = 10
     # Set the width of the windows +/- margin
-    margin = 100
+    margin = 120
     # Set minimum number of pixels found to recenter window
     minpix = 20
 
@@ -123,7 +138,36 @@ def find_lane_pixels(binary_warped):
     rightx = nonzerox[right_lane_inds]
     righty = nonzeroy[right_lane_inds]
 
-    return leftx, lefty, rightx, righty, out_img
+    return leftx, lefty, rightx, righty
+
+def find_lane_pixels(binary_warped):
+    # HYPERPARAMETER
+    # Choose the width of the margin around the previous polynomial to search
+    # The quiz grader expects 100 here, but feel free to tune on your own!
+    margin = 150
+
+    # Grab activated pixels
+    nonzero = binary_warped.nonzero()
+    nonzeroy = np.array(nonzero[0])
+    nonzerox = np.array(nonzero[1])
+    left_fit = left.fit
+    right_fit = right.fit
+    ### TO-DO: Set the area of search based on activated x-values ###
+    ### within the +/- margin of our polynomial function ###
+    ### Hint: consider the window areas for the similarly named variables ###
+    ### in the previous quiz, but change the windows to our new search area ###
+    left_lane_inds = ((nonzerox > left_fit[0]*nonzeroy**2 + left_fit[1]*nonzeroy + left_fit[2] - margin) &
+     (nonzerox < left_fit[0]*nonzeroy**2 + left_fit[1]*nonzeroy + left_fit[2] + margin)).nonzero()[0]
+    right_lane_inds = ((nonzerox > right_fit[0]*nonzeroy**2 + right_fit[1]*nonzeroy + right_fit[2] - margin) & 
+    (nonzerox < right_fit[0]*nonzeroy**2 + right_fit[1]*nonzeroy + right_fit[2] + margin)).nonzero()[0]
+    
+    # Again, extract left and right line pixel positions
+    leftx = nonzerox[left_lane_inds]
+    lefty = nonzeroy[left_lane_inds] 
+    rightx = nonzerox[right_lane_inds]
+    righty = nonzeroy[right_lane_inds]
+
+    return leftx, lefty, rightx, righty
 
 def warp(img):
     img_size = (img.shape[1], img.shape[0])
@@ -158,8 +202,11 @@ def unwarp(warped, dst, src, left_fitx, right_fitx):
     cv2.fillPoly(color_warp, np.int_([pts]), (0,255, 0))
 
     # Warp the blank back to original image space using inverse perspective matrix (Minv)
-    newwarp = cv2.warpPerspective(color_warp, Minv, (warped.shape[1], warped.shape[0])) 
-    return newwarp
+    newwarp = cv2.warpPerspective(color_warp, Minv, (warped.shape[1], warped.shape[0]))
+    
+    unwraped_x = newwarp.nonzero()[1]
+    pos = (max(unwraped_x) - min(unwraped_x))*3.7/1796
+    return newwarp, pos
 
 def measure_curvature(binary_warped, left_fit, right_fit):
     '''
@@ -167,11 +214,11 @@ def measure_curvature(binary_warped, left_fit, right_fit):
     '''
     # Define conversions in x and y from pixels space to meters
     ym_per_pix = 30/720 # meters per pixel in y dimension
-    xm_per_pix = 3.7/700 # meters per pixel in x dimension
+    xm_per_pix = 3.7/898 # meters per pixel in x dimension
     
     # Start by generating our fake example data
     # Make sure to feed in your real data instead in your project!
-    ploty = np.linspace(0, binary_warped.shape[0]-1, binary_warped.shape[0] )
+    ploty = np.linspace(0, binary_warped.shape[0]-1, binary_warped.shape[0])
     
     # Define y-value where we want radius of curvature
     # We'll choose the maximum y-value, corresponding to the bottom of the image
@@ -181,7 +228,7 @@ def measure_curvature(binary_warped, left_fit, right_fit):
     left_curverad =  np.power((1+np.power((2*left_fit[0]*y_eval + left_fit[1]),2)),1.5)/np.abs(2*left_fit[0])## Implement the calculation of the left line here
     right_curverad = np.power((1+np.power((2*right_fit[0]*y_eval + right_fit[1]),2)),1.5)/np.abs(2*right_fit[0])  ## Implement the calculation of the ri  ght line here
     
-    return np.int((left_curverad+right_curverad)/2)
+    return left_curverad, right_curverad
 
 def mag_thresh(img, mag_thresh, sobel_kernel):
     thresh_min, thresh_max, = mag_thresh
@@ -196,34 +243,36 @@ def mag_thresh(img, mag_thresh, sobel_kernel):
     sxbinary[(scaled_sobel >= thresh_min) & (scaled_sobel <= thresh_max)] = 1 # we filter out parts of the image not within the threshold range
     return sxbinary
 
-left_fit = np.array([ 1.22120921e-04, -1.49160585e-01,  3.29075123e+02])
-right_fit = np.array([2.90910728e-04, -2.05179515e-01,  1.08280543e+03])
-
 def fit_polynomial(binary_warped):
-    global left_fit, right_fit
-    # Find our lane pixels first
-    leftx, lefty, rightx, righty, out_img = find_lane_pixels(binary_warped)
+    leftx, lefty, rightx, righty = find_lane_pixels(binary_warped)
 
     ### TO-DO: Fit a second order polynomial to each using `np.polyfit` ###
     left_fit = np.polyfit(lefty, leftx, 2)
     right_fit = np.polyfit(righty, rightx, 2)
+
     # Generate x and y values for plotting
-    ploty = np.linspace(0, binary_warped.shape[0]-1, binary_warped.shape[0] )
-    try:
+    ploty = np.linspace(0, binary_warped.shape[0]-1, binary_warped.shape[0])
+    left_fitx = left_fit[0]*ploty**2 + left_fit[1]*ploty + left_fit[2]
+    right_fitx = right_fit[0]*ploty**2 + right_fit[1]*ploty + right_fit[2]
+        
+    left_curvature, right_curvature = measure_curvature(binary_warped, left_fit, right_fit)
+    
+    if(left.check(left_curvature) == False or right.check(right_curvature) == False):
+        leftx, lefty, rightx, righty = find_lane_pixels_full(binary_warped)
+        left_fit = np.polyfit(lefty, leftx, 2)
+        right_fit = np.polyfit(righty, rightx, 2)
+
+        # Generate x and y values for plotting
+        ploty = np.linspace(0, binary_warped.shape[0]-1, binary_warped.shape[0])
         left_fitx = left_fit[0]*ploty**2 + left_fit[1]*ploty + left_fit[2]
         right_fitx = right_fit[0]*ploty**2 + right_fit[1]*ploty + right_fit[2]
-    except TypeError:
-        # Avoids an error if `left` and `right_fit` are still none or incorrect
-        print('The function failed to fit a line!')
-        left_fitx = 1*ploty**2 + 1*ploty
-        right_fitx = 1*ploty**2 + 1*ploty
-
-    ## Visualization ##
-    # Colors in the left and right lane regions
-    out_img[lefty, leftx] = [255, 0, 0]
-    out_img[righty, rightx] = [0, 0, 255]
-
-    return left_fitx, right_fitx
+        left_curvature, right_curvature = measure_curvature(binary_warped, left_fit, right_fit)
+        left.update(left_curvature, left_fit)
+        left.fitx = left_fitx
+        right.fitx = right_fitx
+        right.update(right_curvature, right_fit)
+        
+    return left.fitx, right.fitx
 
 # Load our image
 def find_lane(image):
@@ -239,9 +288,10 @@ def find_lane(image):
     
     left_fitx, right_fitx = fit_polynomial(warped)
 
-    unwarped = unwarp(final_combination, dst, src, left_fitx, right_fitx)
+    unwarped, pos = unwarp(final_combination, dst, src, left_fitx, right_fitx)
     result = cv2.addWeighted(image, 1, unwarped, 0.3, 0)
-    cv2.putText(result, 'Radius of curvature = {}m'.format(measure_curvature(binary_warped, left_fit, right_fit)), (20,200), cv2.FONT_HERSHEY_SIMPLEX, 2, (255, 255, 255), 2)
+    cv2.putText(result, 'Radius of curvature = {}m'.format(round(np.sum(measure_curvature(image, left.fit, right.fit))/2),2), (20,200), cv2.FONT_HERSHEY_SIMPLEX, 2, (255, 255, 255), 2)
+    cv2.putText(result, 'Vehicle is {}m left of center'.format(round(pos,2)), (20,270), cv2.FONT_HERSHEY_SIMPLEX, 2, (255, 255, 255), 2)
     return result
 
 imgs = glob.glob('./test_images/*.jpg')
