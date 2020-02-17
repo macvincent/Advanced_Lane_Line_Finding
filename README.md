@@ -95,7 +95,7 @@ This resulted in the following source and destination points:
 
 By performing a perspective transform we are able to get a birds eye view of the image which makes it easier for us to detect and calculate the flow of the lanes. After we pass our threshold combination image to the `warp()` function we get the following result:
 
-![alt text][image5]
+![warped][image5]
 
 #### 4. Describe how (and identify where in your code) you identified lane-line pixels and fit their positions with a polynomial?
 
