@@ -1,6 +1,7 @@
-**Advanced Lane Finding Project**
+# Advanced Lane Finding Project
+![Simulation showing the lane in a road][simulation]
 
-The goals / steps of this project are the following:
+The goals / steps of this project were the following:
 
 * Compute the camera calibration matrix and distortion coefficients given a set of chessboard images.
 * Apply a distortion correction to raw images.
@@ -21,6 +22,7 @@ The goals / steps of this project are the following:
 [image6]: ./output_images/undistorted_image.jpg "color and gradient thresholds"
 [image7]: ./output_images/distortion_correction.jpg "distortion_correction"
 [video1]: ./project_video.mp4 "Video"
+[simulation]: ./output_images/road.gif "Road Simulation"
 
 ## Rubric Points
 
