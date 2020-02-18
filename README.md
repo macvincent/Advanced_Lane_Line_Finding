@@ -131,9 +131,10 @@ And a [link to the full code](./examples/p2.ipynb).
 #### 1. Briefly discuss any problems / issues you faced in your implementation of this project.  Where will your pipeline likely fail?  What could you do to make it more robust?
 
 A major issue is in the area of setting the parameters for the lane detection. The process is mostly based on trial and error and therefore is not efficient.
+EDIT: However, making use of [jupyter-widget](https://github.com/jupyter-widgets/ipywidgets) makes it much easier.
 
-The current pipline also fails when placed with more tricky roads. It detects the sharp drop in gradient between different shades of a lane and reads it as a lane. The color detection threshold therefore needs to be worked on.
+The current pipline also fails when placed with more tricky roads. I worked around this by using the lane detected in the previous frame but this can be improved. Sharp drops in gradient between different shades of a lane and is also reade as a lane. The color detection threshold therefore needs to be worked on.
 
 The current pipline also fails on sharp curves.
 
-These are some issues with the current pipeline that needs to be worked on.
+These are some issues with the current pipeline that I need to be work on.

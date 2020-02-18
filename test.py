@@ -299,5 +299,5 @@ for i, img in enumerate(imgs):
     image = cv2.imread(img)
     result = find_lane(image)
     plt.imshow(result)
-    cv2.imwrite('output_images/test'+str(i)+'.jpg',result)
+    cv2.imwrite('./output_images/test'+str(i)+'.jpg',result)
     plt.show()
